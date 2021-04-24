@@ -1,0 +1,9 @@
+py_binary(
+    name = "zetadraw",
+    srcs = ["zetadraw.py"],
+    data = ["//fonts"],
+    deps = [
+        "//py/util",
+        "@bazel_tools//tools/python/runfiles",
+    ],
+)
