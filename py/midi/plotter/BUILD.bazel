@@ -1,0 +1,8 @@
+py_binary(
+    name = "plotter",
+    srcs = glob(["*.py"]),
+    deps = [
+        "//py/midi/lib",
+        "//py/util",
+    ],
+)
