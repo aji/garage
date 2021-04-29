@@ -71,6 +71,14 @@ def expr_eval(ast):
         return int(ast[1])
 
 
+def expr_invert(ast):
+    print("invert", ast)
+    if ast[0] == "<add>" or ast[0] == "<mul>":
+        return f"{expr_invert(ast[1])} {expr_invert(ast[3])} {ast[2]}"
+    if ast[0] == "<term>":
+        return ast[1]
+
+
 def example():
     tok0 = [
         ("(", "("),
@@ -87,6 +95,7 @@ def example():
     ]
     tok, ast = my_expr_parser(tok0)
     print(expr_eval(ast))
+    print(expr_invert(ast))
 
 
 example()
