@@ -1,0 +1,3 @@
+[submodule "cabinet"]
+	path = cabinet
+	url = git@github.com:aji/cabinet.git
