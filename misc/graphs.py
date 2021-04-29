@@ -7,6 +7,7 @@ def make_parser(rules):
         def one_rhs(tok0, rhs):
             tok = tok0
             ast = [lhs]
+            nts = []
             for i, term in enumerate(rhs):
                 if len(tok) == 0:
                     return tok0, None
@@ -14,12 +15,15 @@ def make_parser(rules):
                     tok, v = g[term](tok)
                     if v is None:
                         return tok0, None
+                    nts.append(v)
                 else:
                     tt, v = tok[0]
                     tok = tok[1:]
                     if tt != term:
                         return tok0, None
                 ast.append(v)
+            if len(nts) == 1:
+                return tok, nts[0]
             return tok, ast
 
         def parse(tok0):
