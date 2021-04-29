@@ -27,6 +27,7 @@ def make_parser(rules):
             return tok, ast
 
         def parse(tok0):
+            print("parse", lhs, " ".join(v for tt, v in tok0))
             for rhs in rhses:
                 tok, ast = one_rhs(tok0, rhs)
                 if ast is not None:
@@ -43,31 +44,49 @@ def make_parser(rules):
     return g["<top>"]
 
 
-my_expr_rules = [
-    "<top> := <add>",
-    "<add> := <mul> + <add>",
-    "<add> := <mul> - <add>",
-    "<add> := <mul>",
-    "<mul> := <term> * <mul>",
-    "<mul> := <term>",
-    "<term> := number",
-    "<term> := ( <add> )",
-]
-
-print(
-    make_parser(my_expr_rules)(
-        [
-            ("(", "("),
-            ("number", "2"),
-            ("+", "+"),
-            ("number", "3"),
-            (")", ")"),
-            ("*", "*"),
-            ("(", "("),
-            ("number", "4"),
-            ("+", "+"),
-            ("number", "5"),
-            (")", ")"),
-        ]
-    )
+my_expr_parser = make_parser(
+    [
+        "<top> := <add>",
+        "<add> := <mul> + <add>",
+        "<add> := <mul> - <add>",
+        "<add> := <mul>",
+        "<mul> := <term> * <mul>",
+        "<mul> := <term>",
+        "<term> := number",
+        "<term> := ( <add> )",
+    ]
 )
+
+
+def expr_eval(ast):
+    print("eval", ast)
+    if ast[0] == "<add>":
+        if ast[2] == "+":
+            return expr_eval(ast[1]) + expr_eval(ast[3])
+        elif ast[2] == "-":
+            return expr_eval(ast[1]) - expr_eval(ast[3])
+    if ast[0] == "<mul>":
+        return expr_eval(ast[1]) * expr_eval(ast[3])
+    if ast[0] == "<term>":
+        return int(ast[1])
+
+
+def example():
+    tok0 = [
+        ("(", "("),
+        ("number", "2"),
+        ("+", "+"),
+        ("number", "3"),
+        (")", ")"),
+        ("*", "*"),
+        ("(", "("),
+        ("number", "4"),
+        ("+", "+"),
+        ("number", "5"),
+        (")", ")"),
+    ]
+    tok, ast = my_expr_parser(tok0)
+    print(expr_eval(ast))
+
+
+example()
