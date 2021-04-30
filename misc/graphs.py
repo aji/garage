@@ -1,5 +1,33 @@
 from collections import namedtuple as NT
 from collections import defaultdict
+import re
+import sys
+
+
+def make_lexer(rules):
+    pats = [(tt, re.compile(pat)) for tt, pat in rules]
+
+    def lex(s):
+        while len(s) > 0:
+            tt0, v0 = None, None
+            for tt, pat in pats:
+                m = pat.match(s)
+                if m is None:
+                    continue
+                v = m.group(0)
+                # strictly less is important here
+                if v0 is None or len(v0) < len(v):
+                    tt0, v0 = tt, v
+            if tt0 is None:
+                raise Exception("lexer got stuck: " + repr(s))
+            s = s[len(v0) :]
+            if tt0 != "<skip>":
+                if tt0 == "<self>":
+                    tt0 = v0
+                print("lex", tt0, v0)
+                yield tt0, v0
+
+    return lex
 
 
 def make_parser(rules):
@@ -27,10 +55,10 @@ def make_parser(rules):
             return tok, ast
 
         def parse(tok0):
-            print("parse", lhs, " ".join(v for tt, v in tok0))
             for rhs in rhses:
                 tok, ast = one_rhs(tok0, rhs)
                 if ast is not None:
+                    print("parse", lhs, " ".join(v for tt, v in tok0))
                     return tok, ast
             return tok0, None
 
@@ -42,6 +70,15 @@ def make_parser(rules):
         gspec[lhs.strip()].append(rhs.strip().split())
     g = {k: one_rule(k, v) for k, v in gspec.items()}
     return g["<top>"]
+
+
+my_expr_lexer = make_lexer(
+    [
+        ("<skip>", r"\s*"),
+        ("<self>", r"[-+*()]"),
+        ("number", r"[0-9]+"),
+    ]
+)
 
 
 my_expr_parser = make_parser(
@@ -79,23 +116,14 @@ def expr_invert(ast):
         return ast[1]
 
 
-def example():
-    tok0 = [
-        ("(", "("),
-        ("number", "2"),
-        ("+", "+"),
-        ("number", "3"),
-        (")", ")"),
-        ("*", "*"),
-        ("(", "("),
-        ("number", "4"),
-        ("+", "+"),
-        ("number", "5"),
-        (")", ")"),
-    ]
-    tok, ast = my_expr_parser(tok0)
+def example(s):
+    tok, ast = my_expr_parser(list(my_expr_lexer(s)))
     print(expr_eval(ast))
     print(expr_invert(ast))
 
 
-example()
+args = list(sys.argv[1:])
+if len(args) == 0:
+    args = ["(2 + 3) * (4 + 5)"]
+for s in args:
+    example(s)
