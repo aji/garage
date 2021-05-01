@@ -12,6 +12,10 @@ def lerper(x0, y0, x1, y1):
     return lambda x: y0 + dy * ((x - x0) / dx)
 
 
+def lerp_unlerp(x0, y0, x1, y1):
+    return lerper(x0, y0, x1, y1), lerper(y0, x0, y1, x1)
+
+
 def plot_lerps(w, h, cx, cy, sx, sy):
     if sx is None:
         if sy is None:

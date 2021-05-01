@@ -7,3 +7,9 @@ py_binary(
         "@bazel_tools//tools/python/runfiles",
     ],
 )
+
+py_binary(
+    name = "hyperbolic",
+    srcs = ["hyperbolic.py"],
+    deps = ["//py/util"],
+)
