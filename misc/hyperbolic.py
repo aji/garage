@@ -3,32 +3,75 @@ import time
 import math
 import os
 
+import kiwisolver as K
+
 import pygame
 from pygame.locals import *
 
 from py.util.math import lerp_unlerp
 
-width, height = (1920, 1080)
-screen = pygame.display.set_mode((width, height))
+solver = K.Solver()
 
-uh_plot_rect = pygame.Rect(100, 135, 810, 810)
-pd_plot_rect = pygame.Rect(1010, 135, 810, 810)
+width = K.Variable("width")
+height = K.Variable("height")
+pad = K.Variable("pad")
 
-uh_to_plot_re, uh_fr_plot_x = lerp_unlerp(-3, uh_plot_rect.left, 3, uh_plot_rect.right)
-uh_to_plot_im, uh_fr_plot_y = lerp_unlerp(0, uh_plot_rect.bottom, 6, uh_plot_rect.top)
+plots_x = K.Variable("plots_x")
+plots_y = K.Variable("plots_y")
+plot_sz = K.Variable("plot_sz")
 
-pd_to_plot_re, pd_fr_plot_x = lerp_unlerp(
-    -1.2, pd_plot_rect.left, 1.2, pd_plot_rect.right
-)
-pd_to_plot_im, pd_fr_plot_y = lerp_unlerp(
-    -1.2, pd_plot_rect.bottom, 1.2, pd_plot_rect.top
-)
+solver.addEditVariable(width, "strong")
+solver.addEditVariable(height, "strong")
+solver.addEditVariable(pad, "strong")
 
-uh_to_plot = lambda re, im: (uh_to_plot_re(re), uh_to_plot_im(im))
-pd_to_plot = lambda re, im: (pd_to_plot_re(re), pd_to_plot_im(im))
+solver.addConstraint(pad <= plots_x)
+solver.addConstraint(pad <= plots_y)
+solver.addConstraint(plots_x + plot_sz + pad + plot_sz + plots_x == width)
+solver.addConstraint(plots_y + plot_sz + plots_y == height)
 
-uh_fr_plot = lambda x, y: (uh_fr_plot_x(x), uh_fr_plot_y(y))
-pd_fr_plot = lambda x, y: (pd_fr_plot_x(x), pd_fr_plot_y(y))
+uh_plot_rect, uh_to_plot, uh_fr_plot = None, None, None
+pd_plot_rect, pd_to_plot, pd_fr_plot = None, None, None
+
+
+def set_size(w=1920, h=1080):
+    global uh_plot_rect, uh_to_plot, uh_fr_plot
+    global pd_plot_rect, pd_to_plot, pd_fr_plot
+
+    solver.suggestValue(width, w)
+    solver.suggestValue(height, h)
+    solver.suggestValue(pad, 50)
+
+    solver.updateVariables()
+
+    uh_plot_rect = pygame.Rect(
+        plots_x.value(), plots_y.value(), plot_sz.value(), plot_sz.value()
+    )
+    pd_plot_rect = pygame.Rect(
+        plots_x.value() + plot_sz.value() + pad.value(),
+        plots_y.value(),
+        plot_sz.value(),
+        plot_sz.value(),
+    )
+
+    uh_to_plot_re, uh_fr_plot_x = lerp_unlerp(
+        -3, uh_plot_rect.left, 3, uh_plot_rect.right
+    )
+    uh_to_plot_im, uh_fr_plot_y = lerp_unlerp(
+        0, uh_plot_rect.bottom, 6, uh_plot_rect.top
+    )
+
+    pd_to_plot_re, pd_fr_plot_x = lerp_unlerp(
+        -1.2, pd_plot_rect.left, 1.2, pd_plot_rect.right
+    )
+    pd_to_plot_im, pd_fr_plot_y = lerp_unlerp(
+        -1.2, pd_plot_rect.bottom, 1.2, pd_plot_rect.top
+    )
+
+    uh_to_plot = lambda re, im: (uh_to_plot_re(re), uh_to_plot_im(im))
+    pd_to_plot = lambda re, im: (pd_to_plot_re(re), pd_to_plot_im(im))
+
+    uh_fr_plot = lambda x, y: (uh_fr_plot_x(x), uh_fr_plot_y(y))
+    pd_fr_plot = lambda x, y: (pd_fr_plot_x(x), pd_fr_plot_y(y))
 
 
 def cayley(re, im):
@@ -46,10 +89,18 @@ def un_cayley(re, im):
 
 
 def run_realtime():
+    screen = None
     drawing = False
 
     t_start = time.monotonic()
     t_last = t_start
+
+    def set_display(w, h):
+        nonlocal screen
+        screen = pygame.display.set_mode((w, h), flags=pygame.RESIZABLE)
+        set_size(w, h)
+
+    set_display(1920, 1080)
 
     def clear():
         screen.fill((0, 0, 0))
@@ -69,13 +120,9 @@ def run_realtime():
         pygame.draw.line(screen, (255, 40, 40), uh_to_plot(0, 0), uh_to_plot(0, 6))
         pygame.draw.line(screen, (255, 40, 40), uh_to_plot(-3, 0), uh_to_plot(3, 0))
 
-        unit_circle = pygame.Rect(
-            (pd_to_plot_re(-1), pd_to_plot_im(1)),
-            (
-                pd_to_plot_re(1) - pd_to_plot_re(-1),
-                pd_to_plot_im(-1) - pd_to_plot_im(1),
-            ),
-        )
+        left, top = pd_to_plot(-1, 1)
+        right, bottom = pd_to_plot(1, -1)
+        unit_circle = pygame.Rect(left, top, right - left, bottom - top)
 
         pygame.draw.ellipse(screen, (40, 40, 255), unit_circle, width=1)
         pygame.draw.line(screen, (40, 40, 255), pd_to_plot(-1.2, 0), pd_to_plot(1.2, 0))
@@ -120,6 +167,9 @@ def run_realtime():
             if event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     drawing = False
+            if event.type == pygame.VIDEORESIZE:
+                set_display(*event.size)
+                clear()
 
         pygame.display.flip()
 
