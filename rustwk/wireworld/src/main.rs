@@ -4,7 +4,11 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 use glutin::ContextBuilder;
 
+#[macro_use]
+pub mod error;
+
 pub mod ca;
+pub mod gfx;
 
 fn main() {
     let el = EventLoop::new();
@@ -19,6 +23,8 @@ fn main() {
     );
 
     gl::load_with(|s| windowed_context.get_proc_address(s) as *const _);
+
+    let _renderer = gfx::Renderer::new().expect("failed to create renderer");
 
     el.run(move |event, _, control_flow| {
         //println!("{:?}", event);
