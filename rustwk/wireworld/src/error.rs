@@ -20,17 +20,21 @@ macro_rules! try_gl {
     }};
 }
 
-macro_rules! ww_assert {
-    ($x:expr, $e:expr) => {{
-        if !$x {
-            return Err(Error::from($e));
-        }
-    }};
-}
-
 impl From<&'static str> for Error {
     fn from(e: &'static str) -> Error {
         Error::Other(e)
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Error {
+        panic!("this code should never run");
+    }
+}
+
+impl From<std::num::TryFromIntError> for Error {
+    fn from(_: std::num::TryFromIntError) -> Error {
+        Error::from("TryFromIntError")
     }
 }
 

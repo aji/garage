@@ -1,11 +1,10 @@
 uniform vec2 u_viewport_size;
-
-uniform vec2 u_grid_pos;
 uniform vec2 u_grid_size;
+uniform vec2 u_grid_pos;
 uniform vec2 u_grid_zoom;
 
 void main() {
-    vec2 pos = gl_FragCoord.xy * u_viewport_size.xy;
+    vec2 pos = vec2(gl_FragCoord.x, u_viewport_size.y - gl_FragCoord.y);
 
     vec2 rect_tl = u_grid_pos.xy;
     vec2 rect_br = u_grid_pos.xy + u_grid_size.xy * u_grid_zoom.xy;
