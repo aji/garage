@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::ffi::CStr;
 
 use gl;
 use gl::types::*;
@@ -9,8 +10,22 @@ use crate::math::Vec2;
 const RENDER_VERT_GLSL: &'static [u8] = include_bytes!("vertex.glsl");
 const RENDER_FRAG_GLSL: &'static [u8] = include_bytes!("fragment.glsl");
 
+#[repr(C)]
+pub struct GridAttrsSSBO {
+    rows: i32,
+    cols: i32,
+    stride: i32,
+    offset: i32,
+    page: i32,
+    page_size: i32,
+}
+
+#[derive(Debug)]
 pub struct Renderer {
     prog: GLuint,
+
+    ww_grid_attrs_block: GLuint,
+    ww_grid_data_block: GLuint,
 
     u_viewport_size: GLint,
     u_grid_size: GLint,
@@ -23,10 +38,19 @@ pub struct Renderer {
 impl Renderer {
     pub fn new() -> Result<Renderer> {
         unsafe {
+            println!(
+                "GL version: {}",
+                CStr::from_ptr(gl::GetString(gl::VERSION) as *const _)
+                    .to_str()
+                    .unwrap()
+            );
             let prog = compile_render_program(RENDER_VERT_GLSL, RENDER_FRAG_GLSL)?;
 
             Ok(Renderer {
                 prog,
+
+                ww_grid_attrs_block: 1,
+                ww_grid_data_block: 2,
 
                 u_viewport_size: get_uniform_location(prog, b"u_viewport_size\0")?,
                 u_grid_size: get_uniform_location(prog, b"u_grid_size\0")?,
@@ -43,6 +67,7 @@ impl Renderer {
 
 pub struct ActiveRenderer {
     render: Renderer,
+    ww_grid_buf: GLuint,
     a_pos_buf: GLuint,
 }
 
@@ -62,6 +87,15 @@ impl ActiveRenderer {
 
             uniform2f(render.u_viewport_size, viewport_size)?;
             uniform2f(render.u_grid_size, grid_size)?;
+
+            let mut ww_grid_buf: GLuint = 0;
+            try_gl!(gl::GenBuffers(1, &mut ww_grid_buf));
+            try_gl!(gl::BindBuffer(gl::SHADER_STORAGE_BUFFER, ww_grid_buf));
+            try_gl!(gl::BindBufferBase(
+                gl::SHADER_STORAGE_BUFFER,
+                render.ww_grid_block,
+                ww_grid_buf
+            ));
 
             let a_pos = render.a_pos.try_into().expect("a_pos has unexpected value");
             let mut a_pos_buf: GLuint = 0;
@@ -83,14 +117,27 @@ impl ActiveRenderer {
             ));
             try_gl!(gl::EnableVertexAttribArray(a_pos));
 
-            Ok(ActiveRenderer { render, a_pos_buf })
+            Ok(ActiveRenderer {
+                render,
+                ww_grid_buf,
+                a_pos_buf,
+            })
         }
     }
 
     pub fn close(self) -> Renderer {
         unsafe {
+            gl::DeleteBuffers(1, &self.ww_grid_buf);
             gl::DeleteBuffers(1, &self.a_pos_buf);
             self.render
+        }
+    }
+
+    pub fn set_ww_grid<'a>(&self, grid: &'a GridSSBO) -> Result<()> {
+        unsafe {
+            gl::BindBuffer(gl::SHADER_STORAGE_BUFFER, self.ww_grid_buf);
+
+            Ok(())
         }
     }
 
